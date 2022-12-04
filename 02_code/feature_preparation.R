@@ -66,17 +66,15 @@ df_features <- df_features %>%
   )
 
 # removing columns that are not needed an make some further adjustments
-df_features <- df_features %>% 
+df_features <- df_features %>%
   mutate(
     # turn store ID to a categorical column
     store_nbr = str_pad(store_nbr, width = 3, side = "left", pad = "0"),
     cluster = str_pad(cluster, width = 3, side = "left", pad = "0"),
-    weekend = ifelse(weekend == 0, "Workday", "Weekend"),
-    locale = ifelse(is.na(locale), "Nothing", locale)
+    weekend = ifelse(weekend == 0, "Workday", "Weekend")
   ) %>%
   select(date, store = store_nbr, oilprice = dcoilwtico, family, sales,
-         holiday = type_holiday, holiday_type = locale, everything(),
-         -transferred, -description, -locale_name, -id) 
+          everything(), -id) 
 
 # splitting data into train and test as it was initally provided. The split is
 # defined by the sales column. All rows that have an NA for sales are part of
@@ -100,7 +98,8 @@ df_0_families <- df_mod_train %>%
 # store-family combinations that do not have 0 sales only
 df_mod_train <- df_mod_train %>% 
   left_join(df_0_families, by = c("store", "family")) %>%
-  filter(is.na(exclude))
+  filter(is.na(exclude)) %>% 
+  select(exclude)
 
 df_mod_test <- df_features %>% 
   dplyr::filter(is.na(sales))
@@ -108,6 +107,7 @@ df_mod_test <- df_features %>%
 # saving data
 saveRDS(df_mod_train, "01_data/intermediate/df_mod_train.RDS")
 saveRDS(df_mod_test, "01_data/intermediate/df_mod_test.RDS")
+saveRDS(df_0_families, "01_data/intermediate/df_0_families.RDS")
 
 # removing objects
 rm(
