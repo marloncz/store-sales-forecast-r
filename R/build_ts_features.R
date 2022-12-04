@@ -68,7 +68,7 @@ build_ts_features <- function(.data,
   # dynamically create 3-step rolling window widths
   rolling_window_width <- seq(
     from = 3, to = max_horizon, by = 3
-    )
+  )
   
   # Dynamic and horizon-agnostic creation of var names
   lag_names <- paste(target, "lag", 1:max_horizon, sep = "_")
@@ -76,7 +76,7 @@ build_ts_features <- function(.data,
   
   h_range <- start_horizon:max_horizon
   lag_range <- 1:max_horizon
-
+  
   # building weekday features
   .data <- .data %>%
     dplyr::mutate(
@@ -113,15 +113,8 @@ build_ts_features <- function(.data,
         # e.g. if horizon = 2 then set lag_1 to NA because it is unknown
         !!dplyr::sym(lag_names[h]) := dplyr::case_when(
           h %in% h_range ~ dplyr::lag(!!sym(target), h)
-          )
+        )
       )
-      #   !!dplyr::sym(
-      #     paste0("roll_", lag_names[h], "_w7")
-      #     ) := RcppRoll::roll_meanr(!!dplyr::sym(lag_names[h]), 7),
-      #   !!dplyr::sym(
-      #     paste0("roll_", lag_names[h], "_w14")
-      #     ) := RcppRoll::roll_meanr(!!dplyr::sym(lag_names[h]), 14)
-      # )
   }
   
   # subsetting lag_range to define ma_range
@@ -131,20 +124,20 @@ build_ts_features <- function(.data,
   if (add_ma) {
     for (r in seq_along(rolling_window_width)) {
       for (h in ma_range) {
-      .data <- .data %>%
-        dplyr::mutate(
-          # Moving averages with rolling window based on lag h (dependend on 
-          # different horizons/lags to prevent leakage)
-          !!dplyr::sym(paste0(ma_names[r], "_lag_", h)) := zoo::rollapply(
-            !!dplyr::sym(lag_names[h]),
-            width = rolling_window_width[r],
-            FUN = mean,
-            na.rm = TRUE,
-            align = "right",
-            fill = NA,
-            partial = TRUE
+        .data <- .data %>%
+          dplyr::mutate(
+            # Moving averages with rolling window based on lag h (dependend on 
+            # different horizons/lags to prevent leakage)
+            !!dplyr::sym(paste0(ma_names[r], "_lag_", h)) := zoo::rollapply(
+              !!dplyr::sym(lag_names[h]),
+              width = rolling_window_width[r],
+              FUN = mean,
+              na.rm = TRUE,
+              align = "right",
+              fill = NA,
+              partial = TRUE
+            )
           )
-        )
       }
     }
   }
@@ -158,16 +151,16 @@ build_ts_features <- function(.data,
       # quarters
       seasonal_q1 = ifelse(
         lubridate::month(!!sym(date_column)) %in% c(1, 2, 3), 1, 0
-        ),
+      ),
       seasonal_q2 = ifelse(
         lubridate::month(!!sym(date_column)) %in% c(4, 5, 6), 1, 0
-        ),
+      ),
       seasonal_q3 = ifelse(
         lubridate::month(!!sym(date_column)) %in% c(7, 8, 9), 1, 0
-        ),
+      ),
       seasonal_q4 = ifelse(
         lubridate::month(!!sym(date_column)) %in% c(10, 11, 12), 1, 0
-        ),
+      ),
       # defining categorical column
       seasonal_cat = dplyr::case_when(
         seasonal_q1 == 1 ~ "Q1",
