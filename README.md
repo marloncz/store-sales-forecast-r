@@ -13,6 +13,20 @@ install.packages("renv")
 renv::restore()
 ```
 
+The package `catboost` is not tracked via `renv`. However, an installation of 
+the used version `1.1.1` can be made with the following code:
+
+```r
+# Possible tgz files based on OS:
+# Windows: catboost-R-Windows-1.1.1.tgz
+# Linux: catboost-R-Linux-1.1.1.tgz
+# macOS: catboost-R-Darwin-1.1.1.tgz
+devtools::install_url(
+  "https://github.com/catboost/catboost/releases/download/v1.1.1/catboost-R-Darwin-1.1.1.tgz",
+  INSTALL_opts = c("--no-multiarch", "--no-test-load")
+)
+```
+
 ## Commit Style
 
 `commit -m  "Tag MESSAGE"`
