@@ -115,8 +115,6 @@ df_features <- df_features %>%
     )
   )
 
-df_features_back <- df_features
-
 # removing columns that are not needed an make some further adjustments
 df_features <- df_features %>%
   mutate(
@@ -133,13 +131,8 @@ df_features <- df_features %>%
 # defined by the sales column. All rows that have an NA for sales are part of
 # the test.csv and need to be predicted for the submission
 df_mod_train <- df_features %>% 
-  mutate(
-    # turn store ID to a categorical column
-    store_nbr = str_pad(store_nbr, width = 3, side = "left", pad = "0"),
-    cluster = str_pad(cluster, width = 3, side = "left", pad = "0"),
-    weekend = ifelse(weekend == 0, "Workday", "Weekend")
-  ) %>%
-  rename(store = store_nbr) %>% 
+  # remove observations with NA sales
+  # NA resulting from test period or scaling
   filter(!is.na(sales))
 
 # filtering is based on NA values that are resulting from the join for all 
@@ -147,20 +140,11 @@ df_mod_train <- df_features %>%
 df_mod_train <- df_mod_train %>% 
   left_join(df_0_families, by = c("store", "family")) %>%
   filter(is.na(exclude)) %>%
-  # remove observations with NA sales
-  # NA resulting from test period or scaling
-  filter(!is.na(sales)) %>% 
   # adding filter based on test_start
   filter(date < test_start)
 
 df_mod_test <- df_features %>% 
-  mutate(
-    # turn store ID to a categorical column
-    store_nbr = str_pad(store_nbr, width = 3, side = "left", pad = "0"),
-    cluster = str_pad(cluster, width = 3, side = "left", pad = "0"),
-    weekend = ifelse(weekend == 0, "Workday", "Weekend")
-  ) %>%
-  rename(store = store_nbr) %>% 
+  # only keep rows that are part of the text period
   filter(date >= test_start)
 
 # saving data
@@ -172,5 +156,6 @@ saveRDS(scale_params, "01_data/intermediate/scale_params.RDS")
 # removing objects
 rm(
   "df", "df_split", "df_features", "df_mod_train", 
-  "df_mod_test", "df_0_families"
+  "df_mod_test", "df_0_families", "df_oil_features",
+  "df_split_scale", "df_split_scaled", "scale_params"
 )
