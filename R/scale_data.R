@@ -36,9 +36,9 @@ scale_data <- function(.data,
     max_date <- max(.data[[date_column]])
   }
   
-  t <- dplyr::pull(
-    dplyr::filter(.data, !!dplyr::sym(date_column) <= max_date), !!dplyr::sym(target)
-  )
+  t <- .data %>% 
+    dplyr::filter(!!dplyr::sym(date_column) <= max_date) %>% 
+    dplyr::pull(!!dplyr::sym(target))
   
   if (method == "min-max") {
     t_min <- min(t, na.rm = TRUE)

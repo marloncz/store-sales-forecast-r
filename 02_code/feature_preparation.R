@@ -12,6 +12,44 @@ sapply(function_scripts, source)
 # Note: data is based on the script data_preparation.R
 df <- readRDS("01_data/intermediate/df_master.RDS")
 
+# renaming oil column
+df <- df %>% 
+  rename(oilprice = dcoilwtico)
+
+# get test start
+test_start <- df %>% 
+  filter(is.na(sales)) %>% 
+  pull(date) %>% 
+  min()
+
+# 0 families
+# getting product families without any sales for each store. As no sales 
+# occured in the given history the assumption can be made that these families
+# will have no sales in the future for the corresponding stores.
+df_0_families <- df %>% 
+  filter(!is.na(sales)) %>% 
+  mutate(store = str_pad(store_nbr, width = 3, side = "left", pad = "0")) %>% 
+  group_by(store, family) %>% 
+  summarize(sales = sum(sales, na.rm = TRUE),
+            n = n()) %>% 
+  filter(sales == 0) %>% 
+  mutate(exclude = TRUE) %>% 
+  select(-sales, -n) %>% 
+  ungroup()
+
+
+# Scale data ----
+df_split_scale <- df %>% 
+  group_by(store_nbr, family) %>% 
+  group_split()
+
+df_split_scaled <- purrr::map(.x = df_split_scale, .f = scale_data) %>% 
+  bind_rows()
+
+# get scaled data and params
+df <- df_split_scaled$data
+scale_params <- df_split_scaled$params
+
 # Building Features ----
 
 # ...TS Features ----
@@ -31,6 +69,18 @@ df_features <- map(.x = df_split,
                      # to be predicted for the provided test.csv
                      max_horizon = 16)) %>% 
   bind_rows()
+
+# oil price features
+df_oil_features <- df %>% 
+  select(date, oilprice) %>% 
+  distinct() %>% 
+  build_ts_features(
+    .data = .,
+    group = NULL,
+    target = "oilprice",
+    lags_only = TRUE
+  ) %>% 
+  select(-oilprice)
 
 # ...Additional Features ----
 # Based on the additional notes we can create two more features
@@ -65,6 +115,8 @@ df_features <- df_features %>%
     )
   )
 
+df_features_back <- df_features
+
 # removing columns that are not needed an make some further adjustments
 df_features <- df_features %>%
   mutate(
@@ -73,41 +125,49 @@ df_features <- df_features %>%
     cluster = str_pad(cluster, width = 3, side = "left", pad = "0"),
     weekend = ifelse(weekend == 0, "Workday", "Weekend")
   ) %>%
-  select(date, store = store_nbr, oilprice = dcoilwtico, family, sales,
-          everything(), -id) 
+  select(date, store = store_nbr, oilprice, family, sales,
+          everything(), -id) %>% 
+  left_join(df_oil_features, by = "date")
 
 # splitting data into train and test as it was initally provided. The split is
 # defined by the sales column. All rows that have an NA for sales are part of
 # the test.csv and need to be predicted for the submission
 df_mod_train <- df_features %>% 
-  dplyr::filter(!is.na(sales))
-
-# getting product families without any sales for each store. As no sales 
-# occured in the given history the assumption can be made that these families
-# will have no sales in the future for the corresponding stores.
-df_0_families <- df_mod_train %>% 
-  group_by(store, family) %>% 
-  summarize(sales = sum(sales, na.rm = TRUE),
-            n = n()) %>% 
-  filter(sales == 0) %>% 
-  mutate(exclude = TRUE) %>% 
-  select(-sales, -n) %>% 
-  ungroup()
+  mutate(
+    # turn store ID to a categorical column
+    store_nbr = str_pad(store_nbr, width = 3, side = "left", pad = "0"),
+    cluster = str_pad(cluster, width = 3, side = "left", pad = "0"),
+    weekend = ifelse(weekend == 0, "Workday", "Weekend")
+  ) %>%
+  rename(store = store_nbr) %>% 
+  filter(!is.na(sales))
 
 # filtering is based on NA values that are resulting from the join for all 
 # store-family combinations that do not have 0 sales only
 df_mod_train <- df_mod_train %>% 
   left_join(df_0_families, by = c("store", "family")) %>%
-  filter(is.na(exclude)) %>% 
-  select(exclude)
+  filter(is.na(exclude)) %>%
+  # remove observations with NA sales
+  # NA resulting from test period or scaling
+  filter(!is.na(sales)) %>% 
+  # adding filter based on test_start
+  filter(date < test_start)
 
 df_mod_test <- df_features %>% 
-  dplyr::filter(is.na(sales))
+  mutate(
+    # turn store ID to a categorical column
+    store_nbr = str_pad(store_nbr, width = 3, side = "left", pad = "0"),
+    cluster = str_pad(cluster, width = 3, side = "left", pad = "0"),
+    weekend = ifelse(weekend == 0, "Workday", "Weekend")
+  ) %>%
+  rename(store = store_nbr) %>% 
+  filter(date >= test_start)
 
 # saving data
 saveRDS(df_mod_train, "01_data/intermediate/df_mod_train.RDS")
 saveRDS(df_mod_test, "01_data/intermediate/df_mod_test.RDS")
 saveRDS(df_0_families, "01_data/intermediate/df_0_families.RDS")
+saveRDS(scale_params, "01_data/intermediate/scale_params.RDS")
 
 # removing objects
 rm(
