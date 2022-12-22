@@ -43,12 +43,20 @@ df_split_scale <- df %>%
   group_by(store_nbr, family) %>% 
   group_split()
 
-df_split_scaled <- purrr::map(.x = df_split_scale, .f = scale_data) %>% 
-  bind_rows()
+# loop over each df and scale data
+df_split_scaled <- purrr::map(.x = df_split_scale, .f = scale_data)
 
-# get scaled data and params
-df <- df_split_scaled$data
-scale_params <- df_split_scaled$params
+# extract params for rescaling purpose
+scale_params <- purrr::map(.x = df_split_scaled,
+                           .f = ~ .x$params) %>% 
+  bind_rows() %>% 
+  # adjust store_nbr for later joining purpose
+  mutate(store_nbr = str_pad(store_nbr, width = 3, side = "left", pad = "0"))
+  
+# extract data and binding rows together
+df <- purrr::map(.x = df_split_scaled,
+                 .f = ~ .x$data) %>% 
+  bind_rows()
 
 # Building Features ----
 

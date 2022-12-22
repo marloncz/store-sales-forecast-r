@@ -20,6 +20,7 @@
 #' @param date_column column name as `chr` that contains the date information 
 #' of type `date`.
 #' @param group_column column name as `chr` that contains the group information.
+#' @param id_column column name as `chr` that contains and additional group information.
 #'
 #' @return A \code{data.frame} with scaled target column and
 #' attributes related to the method used.
@@ -30,7 +31,8 @@ scale_data <- function(.data,
                        target = "sales",
                        method = "standard",
                        date_column = "date",
-                       group_column = "family") {
+                       group_column = "family",
+                       id_column = "store_nbr") {
   
   if (is.null(max_date)) {
     max_date <- max(.data[[date_column]])
@@ -54,6 +56,7 @@ scale_data <- function(.data,
       )
     
     norm_params <- tibble::tibble(
+      !!dplyr::sym(id_column) := unique(dplyr::pull(df_normed, !!dplyr::sym(id_column))),
       !!dplyr::sym(group_column) := unique(
         dplyr::pull(df_normed, !!dplyr::sym(group_column))
       ),
@@ -73,6 +76,7 @@ scale_data <- function(.data,
       )
     
     norm_params <- tibble::tibble(
+      !!dplyr::sym(id_column) := unique(dplyr::pull(df_normed, !!dplyr::sym(id_column))),
       !!dplyr::sym(group_column) := unique(dplyr::pull(df_normed, !!dplyr::sym(group_column))),
       !!dplyr::sym(paste0(target, "_x_mean")) := t_mean,
       !!dplyr::sym(paste0(target, "_x_sd")) := t_sd,
