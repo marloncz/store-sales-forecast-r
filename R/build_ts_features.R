@@ -121,7 +121,7 @@ build_ts_features <- function(.data,
   
   if (!lags_only) {
     # subsetting lag_range to define ma_range
-    ma_range <- lag_range[lag_range %% 3 == 0]
+    ma_range <- c(1:3, 7, 14, 16)
     # ensure that the maximum value of lag_range is present
     ma_range <- unique(c(ma_range, max(lag_range)))
     if (add_ma) {
