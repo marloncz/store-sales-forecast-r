@@ -9,12 +9,28 @@ build_formula <- function(target = "sales", non_lag_features, lag = 1) {
   )
   
   # lag features
-  lag_feats <- c(
-    "sales_ma_6_", "sales_", "oilprice_"
+  lag_feats_base <- c(
+    "sales_", "oilprice_"
+  )
+  
+  ma_lag_base <- c(
+    "sales_ma_6_"
   )
   
   # adjust lag feat
-  lag_feats <- paste0(lag_feats, "lag_", lag)
+  lag_feats <- paste0(lag_feats_base, "lag_", lag)
+  
+  ma_lags <- paste0(ma_lag_base, "lag_", lag)
+  
+  if (lag < 7) {
+    tmp_lag_feats <- paste0(lag_feats_base, "lag_", 7)
+    lag_feats <- c(lag_feats, tmp_lag_feats)
+  } 
+  
+  if (lag < 14) {
+    tmp_lag_feats <- paste0(lag_feats_base, "lag_", 14)
+    lag_feats <- c(lag_feats, tmp_lag_feats)
+  }
   
   # binding all features together
   all_feats <- c(non_lag_features, lag_feats)
