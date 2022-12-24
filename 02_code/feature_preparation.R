@@ -143,6 +143,28 @@ df_mod_train <- df_features %>%
   # NA resulting from test period or scaling
   filter(!is.na(sales))
 
+# identify first valid observation for each family on store level
+df_first_valid_obs <- df_mod_train %>% 
+  # turn value to NA if sale is zero
+  mutate(sales_filter = case_when(
+    sales_unnormed == 0 ~ as.double(NA),
+    TRUE ~ sales_unnormed
+  )) %>% 
+  select(date, store, family, sales_filter) %>% 
+  # remove all rows containing NA values within new created column
+  filter(!is.na(sales_filter)) %>% 
+  # get the minimum date for each family on store level representing the first
+  # valid observation
+  group_by(store, family) %>% 
+  summarize(first_valid_obs = min(date)) %>% 
+  ungroup()
+
+# adding created df with first valid obs and removing all rows that are not
+# part of actual sales history
+df_mod_train <- df_mod_train %>% 
+  left_join(df_first_valid_obs, by = c("store", "family")) %>% 
+  filter(date >= first_valid_obs)
+
 # filtering is based on NA values that are resulting from the join for all 
 # store-family combinations that do not have 0 sales only
 df_mod_train <- df_mod_train %>% 
