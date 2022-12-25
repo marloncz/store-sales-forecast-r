@@ -13,6 +13,7 @@ df_oil <- read_csv("01_data/raw/oil.csv")
 df_stores <- read_csv("01_data/raw/stores.csv")
 df_test <- read_csv("01_data/raw/test.csv")
 df_train <- read_csv("01_data/raw/train.csv")
+df_transactions <- read_csv("01_data/raw/transactions.csv")
 
 # Fill potential Gaps ----
 # There are some gaps that exist at the end of December in many years. These
@@ -83,6 +84,10 @@ df_master <- df_train %>%
   # oil price information contains several NAs 
   # these NAs will be filled up with a downup logic
   fill(dcoilwtico, .direction = "downup")
+
+# adding transaction data
+df_master <- df_master %>% 
+  left_join(df_transactions, by = c("date", "store_nbr"))
 
 # saving prepared data
 saveRDS(df_master, "01_data/intermediate/df_master.RDS")
