@@ -3,6 +3,7 @@ library(dplyr)
 library(stringr)
 library(lubridate)
 library(purrr)
+library(data.table)
 
 # sourcing R functions
 function_scripts = list.files("R", full.names = TRUE)
@@ -56,25 +57,56 @@ if (scale) {
     mutate(store_nbr = str_pad(store_nbr, width = 3, side = "left", pad = "0"))
   
   # extract data and binding rows together
-  df <- purrr::map(.x = df_split_scaled,
-                   .f = ~ .x$data) %>% 
+  df_split_scaled <- purrr::map(.x = df_split_scaled,
+                                .f = ~ .x$data) 
+  
+  # scaling transactions as it is also target specific
+  df_split_scaled <- purrr::map(.x = df_split_scaled, 
+                                .f = ~scale_data(.data = .x, 
+                                                 target = "transactions"))
+  
+  # no rescaling for transactions needed, params can be ignored
+  df_scaled_data <- purrr::map(.x = df_split_scaled,
+                               .f = ~ .x$data)
+  
+  # binding rows together
+  df <- df_scaled_data %>% 
     bind_rows()
+  
 }
 
 # Building Features ----
 df_features <- df %>% 
   add_ts_features(
     target = "sales",
-    lags = c(7, 14, 16, 30, 365),
-    mas = c(14, 30),
+    lags = c(7, 14, 16, 30),
+    mas = c(14, 30, 60),
     groups = c("store_nbr", "family")
     ) %>% 
   add_ts_features(
     target = "transactions",
-    lags = c(7, 14, 16, 30, 365),
+    lags = c(7, 14, 16, 30),
     mas = c(14, 30),
     groups = c("store_nbr", "family")
   )
+
+if (scale) {
+  df_features <- df_features %>% 
+    add_ts_features(
+      target = "sales_unnormed",
+      lags = c(1),
+      mas = c(30, 60),
+      groups = c("store_nbr", "family")
+    )
+  
+  df_features <- df_features %>% 
+    mutate(ma_inactive_30 = sales_unnormed_ma_30,
+           ma_inactive_60 = sales_unnormed_ma_60)
+} else {
+  df_features <- df_features %>% 
+    mutate(ma_inactive_30 = sales_ma_30,
+           ma_inactive_60 = sales_ma_60)
+}
 
 # adding date features
 df_features <- df_features %>% 
@@ -126,6 +158,20 @@ df_features <- df_features %>%
   ) %>%
   select(date, store = store_nbr, oilprice, family, sales,
           everything(), -id)
+
+df_features <- df_features %>% 
+  dplyr::mutate(
+    # if no sale occured within the past month, the product will be classified
+    # as inactive
+    inactive_30 = case_when(
+      ma_inactive_30 == 0 ~ 1,
+      TRUE ~ 0
+    ),
+    inactive_60 = case_when(
+      ma_inactive_60 == 0 ~ 1,
+      TRUE ~ 0
+    ),
+  )
 
 # splitting data into train and test as it was initally provided. The split is
 # defined by the sales column. All rows that have an NA for sales are part of
@@ -179,8 +225,33 @@ df_mod_test <- df_features %>%
   # only keep rows that are part of the text period
   filter(date >= test_start)
 
+# define inactive products
+# products that are not sold since 2017-06-01 will be classified as
+# inactive. All future observations will be set to 0. These products will be 
+# also not included within the training
+df_inactive <- df_mod_train %>% 
+  filter(date >= "2017-07-01") %>% 
+  group_by(store, family) %>% 
+  summarise(n = n(),
+            inactive = sum(inactive_30)) %>% 
+  filter(n == inactive) %>% 
+  mutate(prod_inactive = TRUE) %>% 
+  select(-n, -inactive)
+
+# exclude families that are classified as inactive and will be predicted with
+# 0 by default
+df_mod_train <- df_mod_train %>% 
+  left_join(df_inactive, by = c("store", "family")) %>% 
+  mutate(prod_inactive = ifelse(is.na(prod_inactive), FALSE, prod_inactive)) %>% 
+  filter(!prod_inactive)
+
+# adding inactive products to df_0_families
+df_0_families <- df_0_families %>% 
+  bind_rows(df_inactive %>% 
+              rename(exclude = prod_inactive))
+
 # saving data
-# saveRDS(df_0_families, "01_data/intermediate/df_0_families.RDS")
+saveRDS(df_0_families, "01_data/intermediate/df_0_families.RDS")
 
 if (scale) {
   saveRDS(df_mod_train, "01_data/intermediate/df_mod_train_scaled.RDS")
