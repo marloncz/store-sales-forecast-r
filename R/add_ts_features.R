@@ -42,51 +42,48 @@ add_ts_features <- function(.data,
   # Groupiing
   if (!is.null(groups)) {
     .data <- .data %>% 
-      dplyr::group_by_at(groups)
+      unite("group", groups, remove = FALSE)
   }
   
   # arrange data based on date_column to ensure correct ordering
   .data <- .data %>% 
-    dplyr::arrange(!!dplyr::sym(date_column))
+    dplyr::arrange(!!dplyr::sym(date_column)) %>% 
+    dplyr::mutate(target_col = !!dplyr::sym(target))
   
   # Dynamic and horizon-agnostic creation of var names
   lag_names <- paste(target, "lag", lags, sep = "_")
   ma_names <- paste(target, "ma", mas, sep = "_")
-
-  # Create features
-  for (h in seq_along(lags)) {
-    .data <- .data %>%
-      dplyr::mutate(
-        !!dplyr::sym(lag_names[h]) := dplyr::lag(!!sym(target), lags[h])
-      )
+  
+  dt <- data.table::as.data.table(.data)
+  
+  # Moving Averages
+  for (m in mas) {
+    col_ma <- paste0(target, "_ma_", m)
+    dt[, (col_ma) := frollmean(target_col, m, na.rm = TRUE), by = group]
   }
   
-  # TODO: refactor to data.table
-  if (add_ma) {
-    for (r in seq_along(mas)) {
-      print(paste0("MA Width ", r, "/", length(mas)))
-      for (h in seq_along(lags)) {
-        print(paste0("Lag ", h, "/", length(lags)))
-        .data <- .data %>%
-          dplyr::mutate(
-            # Moving averages with rolling window based on lag h (dependend on 
-            # different horizons/lags to prevent leakage)
-            !!dplyr::sym(paste0(ma_names[r], "_lag_", lags[h])) := zoo::rollapply(
-              !!dplyr::sym(lag_names[h]),
-              width = mas[r],
-              FUN = mean,
-              na.rm = TRUE,
-              align = "right",
-              fill = NA,
-              partial = TRUE
-            )
-          )
-      }
+  for (l in lags) {
+    col <- paste0(target, "_lag_", l)
+    dt[, (col) := shift(target_col, n = l), by = group]
+  }
+  
+  .data <- as_tibble(dt) %>% 
+    dplyr::group_by_at(groups)
+  
+  for (l in lags) {
+    for (m in mas) {
+      col_ma <- paste0(target, "_ma_", m)
+      col_ma_lag <- paste0(col_ma, "_lag_", l)
+      .data <- .data %>% 
+        dplyr::mutate(
+          !!dplyr::sym(col_ma_lag) := dplyr::lag(!!dplyr::sym(col_ma), n = l)
+        )
     }
   }
   
-  .data <- .data %>% 
-    dplyr::ungroup()
+  .data <- .data %>%
+    dplyr::ungroup() %>% 
+    dplyr::select(-group, -target_col)
   
   return(.data)
 }
