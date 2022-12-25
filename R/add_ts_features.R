@@ -61,6 +61,7 @@ add_ts_features <- function(.data,
       )
   }
   
+  # TODO: refactor to data.table
   if (add_ma) {
     for (r in seq_along(mas)) {
       print(paste0("MA Width ", r, "/", length(mas)))
