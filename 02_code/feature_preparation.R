@@ -8,6 +8,8 @@ library(purrr)
 function_scripts = list.files("R", full.names = TRUE)
 sapply(function_scripts, source)
 
+scale <- TRUE
+
 # Reading Data ----
 # Note: data is based on the script data_preparation.R
 df <- readRDS("01_data/intermediate/df_master.RDS")
@@ -37,59 +39,50 @@ df_0_families <- df %>%
   select(-sales, -n) %>% 
   ungroup()
 
-
-# Scale data ----
-df_split_scale <- df %>% 
-  group_by(store_nbr, family) %>% 
-  group_split()
-
-# loop over each df and scale data
-df_split_scaled <- purrr::map(.x = df_split_scale, .f = scale_data)
-
-# extract params for rescaling purpose
-scale_params <- purrr::map(.x = df_split_scaled,
-                           .f = ~ .x$params) %>% 
-  bind_rows() %>% 
-  # adjust store_nbr for later joining purpose
-  mutate(store_nbr = str_pad(store_nbr, width = 3, side = "left", pad = "0"))
+# Scaling ----
+if (scale) {
+  df_split_scale <- df %>% 
+    group_by(store_nbr, family) %>% 
+    group_split()
   
-# extract data and binding rows together
-df <- purrr::map(.x = df_split_scaled,
-                 .f = ~ .x$data) %>% 
-  bind_rows()
+  # loop over each df and scale data
+  df_split_scaled <- purrr::map(.x = df_split_scale, .f = scale_data)
+  
+  # extract params for rescaling purpose
+  scale_params <- purrr::map(.x = df_split_scaled,
+                             .f = ~ .x$params) %>% 
+    bind_rows() %>% 
+    # adjust store_nbr for later joining purpose
+    mutate(store_nbr = str_pad(store_nbr, width = 3, side = "left", pad = "0"))
+  
+  # extract data and binding rows together
+  df <- purrr::map(.x = df_split_scaled,
+                   .f = ~ .x$data) %>% 
+    bind_rows()
+}
 
 # Building Features ----
+df_features <- df %>% 
+  add_ts_features(
+    target = "sales",
+    lags = c(7, 14, 16, 30, 365),
+    mas = c(14, 30),
+    groups = c("store_nbr", "family")
+    ) %>% 
+  add_ts_features(
+    target = "transactions",
+    lags = c(7, 14, 16, 30, 365),
+    mas = c(14, 30),
+    groups = c("store_nbr", "family")
+  )
 
-# ...TS Features ----
-# splitting data to different data frames based on stores
-df_split <- df %>% 
-  group_split(store_nbr)
+# adding date features
+df_features <- df_features %>% 
+  add_date_features()
 
-# features will be build for each store and family within each store
-# the result is a single data.frame that contains all time-series features 
-# based on the sales column
-df_features <- map(.x = df_split,
-                   .f = ~ build_ts_features(
-                     .data = .x,
-                     target = "sales",
-                     group = "family",
-                     # defined by the maximum number of days that need
-                     # to be predicted for the provided test.csv
-                     max_horizon = 16)) %>% 
-  bind_rows()
+df_backup <- df_features
 
-# oil price features
-df_oil_features <- df %>% 
-  select(date, oilprice) %>% 
-  distinct() %>% 
-  build_ts_features(
-    .data = .,
-    group = NULL,
-    target = "oilprice",
-    lags_only = TRUE
-  ) %>% 
-  select(-oilprice)
-
+df_features <- df_backup
 # ...Additional Features ----
 # Based on the additional notes we can create two more features
 # 1. Wages in the public sector are paid every two weeks on the 15 th and on 
@@ -132,8 +125,7 @@ df_features <- df_features %>%
     weekend = ifelse(weekend == 0, "Workday", "Weekend")
   ) %>%
   select(date, store = store_nbr, oilprice, family, sales,
-          everything(), -id) %>% 
-  left_join(df_oil_features, by = "date")
+          everything(), -id)
 
 # splitting data into train and test as it was initally provided. The split is
 # defined by the sales column. All rows that have an NA for sales are part of
@@ -144,12 +136,22 @@ df_mod_train <- df_features %>%
   filter(!is.na(sales))
 
 # identify first valid observation for each family on store level
-df_first_valid_obs <- df_mod_train %>% 
-  # turn value to NA if sale is zero
-  mutate(sales_filter = case_when(
-    sales_unnormed == 0 ~ as.double(NA),
-    TRUE ~ sales_unnormed
-  )) %>% 
+if (scale) {
+  df_first_valid_obs <- df_mod_train %>% 
+    # turn value to NA if sale is zero
+    mutate(sales_filter = case_when(
+      sales_unnormed == 0 ~ as.double(NA),
+      TRUE ~ sales_unnormed
+    ))
+} else {
+  df_first_valid_obs <- df_mod_train %>% 
+    # turn value to NA if sale is zero
+    mutate(sales_filter = case_when(
+      sales == 0 ~ as.double(NA),
+      TRUE ~ sales
+    ))
+}
+df_first_valid_obs <- df_first_valid_obs %>%
   select(date, store, family, sales_filter) %>% 
   # remove all rows containing NA values within new created column
   filter(!is.na(sales_filter)) %>% 
@@ -178,14 +180,20 @@ df_mod_test <- df_features %>%
   filter(date >= test_start)
 
 # saving data
-saveRDS(df_mod_train, "01_data/intermediate/df_mod_train.RDS")
-saveRDS(df_mod_test, "01_data/intermediate/df_mod_test.RDS")
-saveRDS(df_0_families, "01_data/intermediate/df_0_families.RDS")
-saveRDS(scale_params, "01_data/intermediate/scale_params.RDS")
+# saveRDS(df_0_families, "01_data/intermediate/df_0_families.RDS")
+
+if (scale) {
+  saveRDS(df_mod_train, "01_data/intermediate/df_mod_train_scaled.RDS")
+  saveRDS(df_mod_test, "01_data/intermediate/df_mod_test_scaled.RDS")
+  saveRDS(scale_params, "01_data/intermediate/scale_params.RDS")
+  rm("scale_params", "df_split_scale", "df_split_scaled")
+} else {
+  saveRDS(df_mod_train, "01_data/intermediate/df_mod_train_unscaled.RDS")
+  saveRDS(df_mod_test, "01_data/intermediate/df_mod_test_unscaled.RDS")
+}
 
 # removing objects
 rm(
-  "df", "df_split", "df_features", "df_mod_train", 
-  "df_mod_test", "df_0_families", "df_oil_features",
-  "df_split_scale", "df_split_scaled", "scale_params"
+  "df", "df_features", "df_mod_train", 
+  "df_mod_test", "df_0_families"
 )
