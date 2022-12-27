@@ -4,6 +4,7 @@ library(stringr)
 library(lubridate)
 library(purrr)
 library(data.table)
+library(tidyr)
 
 # sourcing R functions
 function_scripts = list.files("R", full.names = TRUE)
@@ -17,6 +18,9 @@ df <- readRDS("01_data/intermediate/df_master.RDS")
 
 # renaming oil column
 df <- df %>% 
+  # NOTE: oilprice is available for the full test period. This information is
+  # not available under real conditions. However, as we do have this information
+  # provided, no lags will be build.
   rename(oilprice = dcoilwtico)
 
 # get test start
@@ -76,20 +80,23 @@ if (scale) {
 }
 
 # Building Features ----
+# adding lags and moving averages to data 
+# for sales and transaction information
 df_features <- df %>% 
   add_ts_features(
     target = "sales",
-    lags = c(7, 14, 16, 30),
+    lags = c(1, 3, 7, 14, 16, 30),
     mas = c(14, 30, 60),
     groups = c("store_nbr", "family")
     ) %>% 
   add_ts_features(
     target = "transactions",
-    lags = c(7, 14, 16, 30),
+    lags = c(1, 3, 7, 14, 16, 30),
     mas = c(14, 30),
     groups = c("store_nbr", "family")
   )
 
+# adjust colname based on sclaing param
 if (scale) {
   df_features <- df_features %>% 
     add_ts_features(
@@ -112,9 +119,6 @@ if (scale) {
 df_features <- df_features %>% 
   add_date_features()
 
-df_backup <- df_features
-
-df_features <- df_backup
 # ...Additional Features ----
 # Based on the additional notes we can create two more features
 # 1. Wages in the public sector are paid every two weeks on the 15 th and on 
@@ -140,13 +144,18 @@ df_features <- df_features %>%
   ungroup() %>% 
   # earthquake period is initially defined by 3 weeks, starting from the 
   # given date
-  # TODO: evaluate patterns concerning this period.
+  # TODO: evaluate patterns in more detail concerning the earthquake peridod
   mutate(
     earthquake_peridod = case_when(
       date >= "2016-04-16" & date <= as.Date("2016-04-16") + weeks(3) ~ 1,
       TRUE ~ 0
     )
-  )
+  ) %>% 
+  # adding chrismas indicator
+  mutate(chrismas = case_when(
+    lubridate::month(date) == 12 & lubridate::mday(date) == 25 ~ "Chrismas",
+    TRUE ~ "No Chrismas"
+  ))
 
 # removing columns that are not needed an make some further adjustments
 df_features <- df_features %>%
@@ -156,8 +165,7 @@ df_features <- df_features %>%
     cluster = str_pad(cluster, width = 3, side = "left", pad = "0"),
     weekend = ifelse(weekend == 0, "Workday", "Weekend")
   ) %>%
-  select(date, store = store_nbr, oilprice, family, sales,
-          everything(), -id)
+  select(date, store = store_nbr, oilprice, family, sales, everything(), -id)
 
 df_features <- df_features %>% 
   dplyr::mutate(
@@ -197,6 +205,8 @@ if (scale) {
       TRUE ~ sales
     ))
 }
+
+# getting first valid observation for every product on store level
 df_first_valid_obs <- df_first_valid_obs %>%
   select(date, store, family, sales_filter) %>% 
   # remove all rows containing NA values within new created column
