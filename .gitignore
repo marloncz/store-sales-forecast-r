@@ -44,3 +44,13 @@ vignettes/*.pdf
 
 # data folder
 01_data/
+
+# csv
+*.csv
+
+# RDS files
+*.RDS
+
+# catboost folder
+catboost_info/
+
