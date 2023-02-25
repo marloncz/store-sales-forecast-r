@@ -10,6 +10,7 @@ library(tidyr)
 function_scripts = list.files("R", full.names = TRUE)
 sapply(function_scripts, source)
 
+# Params ----
 scale <- TRUE
 
 # Reading Data ----
@@ -51,7 +52,7 @@ if (scale) {
     group_split()
   
   # loop over each df and scale data
-  df_split_scaled <- purrr::map(.x = df_split_scale, .f = scale_data)
+  df_split_scaled <- map(.x = df_split_scale, .f = scale_data)
   
   # extract params for rescaling purpose
   scale_params <- purrr::map(.x = df_split_scaled,
@@ -77,6 +78,7 @@ if (scale) {
   df <- df_scaled_data %>% 
     bind_rows()
   
+  rm("df_scaled_data", "df_split_scaled", "df_split_scale")
 }
 
 # Building Features ----
@@ -85,16 +87,19 @@ if (scale) {
 df_features <- df %>% 
   add_ts_features(
     target = "sales",
-    lags = c(1, 3, 7, 14, 16, 30),
+    lags = c(3:21, 30),
     mas = c(14, 30, 60),
     groups = c("store_nbr", "family")
     ) %>% 
   add_ts_features(
     target = "transactions",
-    lags = c(1, 3, 7, 14, 16, 30),
-    mas = c(14, 30),
+    lags = c(3:16, 21, 30),
+    mas = c(14, 30, 60),
     groups = c("store_nbr", "family")
   )
+
+rm("df")
+gc()
 
 # adjust colname based on sclaing param
 if (scale) {
@@ -144,7 +149,6 @@ df_features <- df_features %>%
   ungroup() %>% 
   # earthquake period is initially defined by 3 weeks, starting from the 
   # given date
-  # TODO: evaluate patterns in more detail concerning the earthquake peridod
   mutate(
     earthquake_peridod = case_when(
       date >= "2016-04-16" & date <= as.Date("2016-04-16") + weeks(3) ~ 1,
@@ -189,6 +193,14 @@ df_mod_train <- df_features %>%
   # NA resulting from test period or scaling
   filter(!is.na(sales))
 
+# defining test set
+df_mod_test <- df_features %>% 
+  # only keep rows that are part of the text period
+  filter(date >= test_start)
+
+rm("df_features")
+gc()
+
 # identify first valid observation for each family on store level
 if (scale) {
   df_first_valid_obs <- df_mod_train %>% 
@@ -231,10 +243,6 @@ df_mod_train <- df_mod_train %>%
   # adding filter based on test_start
   filter(date < test_start)
 
-df_mod_test <- df_features %>% 
-  # only keep rows that are part of the text period
-  filter(date >= test_start)
-
 # define inactive products
 # products that are not sold since 2017-06-01 will be classified as
 # inactive. All future observations will be set to 0. These products will be 
@@ -267,14 +275,10 @@ if (scale) {
   saveRDS(df_mod_train, "01_data/intermediate/df_mod_train_scaled.RDS")
   saveRDS(df_mod_test, "01_data/intermediate/df_mod_test_scaled.RDS")
   saveRDS(scale_params, "01_data/intermediate/scale_params.RDS")
-  rm("scale_params", "df_split_scale", "df_split_scaled")
 } else {
   saveRDS(df_mod_train, "01_data/intermediate/df_mod_train_unscaled.RDS")
   saveRDS(df_mod_test, "01_data/intermediate/df_mod_test_unscaled.RDS")
 }
 
 # removing objects
-rm(
-  "df", "df_features", "df_mod_train", 
-  "df_mod_test", "df_0_families"
-)
+rm("df_mod_train", "df_mod_test", "df_0_families")
