@@ -1,7 +1,6 @@
 #' Get Predictive Power Score
 #'
 #' @param data `data.frame` containing features and target.
-#' @param market the corresponding market id as `chr`.
 #' @param target name of target column
 #' @param top_n number of features as `int` that should be returned based on
 #' predictive power score. If `NULL` all features will be returned with the
@@ -9,7 +8,7 @@
 #'
 #' @return `data.frame` containing pps for all features.
 #' @export
-get_predictive_power_scores <- function(data, market, target, top_n = NULL) {
+get_predictive_power_scores <- function(data, target, top_n = NULL) {
   # selecting all numerical columns
   data <- data %>%
     dplyr::select_if(is.numeric) %>%
