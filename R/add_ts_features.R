@@ -42,7 +42,7 @@ add_ts_features <- function(.data,
   # Groupiing
   if (!is.null(groups)) {
     .data <- .data %>% 
-      tidyr::unite("group", groups, remove = FALSE)
+      tidyr::unite("group", dplyr::all_of(groups), remove = FALSE)
   }
   
   # arrange data based on date_column to ensure correct ordering
@@ -68,7 +68,7 @@ add_ts_features <- function(.data,
   }
   
   .data <- tibble::as_tibble(dt) %>% 
-    dplyr::group_by_at(groups)
+    dplyr::group_by_at(dplyr::all_of(groups))
   
   for (l in lags) {
     for (m in mas) {
