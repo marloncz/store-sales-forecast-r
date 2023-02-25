@@ -24,9 +24,6 @@ df_train <- df_train %>%
          days_since_pay, oilprice, contains("sales_"), chrismas,
          contains("transactions_")) %>%
   # training since 2015 instead of 2013
-  # TODO: period exclusion for each family based on the sales history (mean)
-  # > some families do have a high number of observations with 0s within 2015
-  #   and later
   filter(year(date) >= 2015) %>% 
   ggplot2::remove_missing()
 
