@@ -27,20 +27,25 @@ devtools::install_url(
 )
 ```
 
-## Commit Style
+## Conventional Commits
 
 `commit -m  "Tag MESSAGE"`
 
-`commit -m "MOD Added linear regression to toolstack"`
+`commit -m "feat added linear regression to toolstack"`
 
-Where to commit? (Tag)
-
-* **PPL**   - Pipeline
-* **MOD**   - Model
-* **SEL**   - Feature selection
-* **EXP**   - Exploration
-* **DAT**   - Data related
-* **ORG**   - Organisation
+| Type              | Content                         | 
+| ----------------- | ---------------------------- | 
+| fix               | Patches a bug in the codebase. | 
+| feat              | Introduces a new feature to the codebase.  |
+| test              | Adding missing tests or correcting existing tests. | 
+| docs              | Adds, updates or revises documentation that is stored in the repository. | 
+| ops               | Changes that affect operational components, like infrastructure, deployment, backup,  |
+| refactor          | Refactoring existing code in the product, but without altering or changing existing behaviour in the product.  | 
+| build             | Changes that affect build components or external dependencies, like build tool, ci pipeline, project version. | 
+| perf              | Code changes that improves the performance or general execution time of the product but does not fundamentally change an existing feature.  |
+| chore             | Includes a technical or preventative maintenance task that is necessary for managing the product or the repository, but it is not tied to any specific feature or user story e.g., modifying gitignore. | 
+| style             | Changes, that do not affect the meaning of the code (white-spaces, formatting, missing semi-colons etc.)  | 
+| revert            | Reverts one or more commits that were previously included in the product, but accidentally merged or serious issues were discovered that required their removal. |
 
 
 ## Folder Structure
