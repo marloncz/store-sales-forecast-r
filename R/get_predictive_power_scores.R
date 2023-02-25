@@ -6,6 +6,8 @@
 #' predictive power score. If `NULL` all features will be returned with the
 #' corresponding predictive power score. Defualt is `NULL`.
 #' @param parallel `bool`, whether to perform score calls in parallel.
+#' @param subset_ratio `dbl`, sample of observations that should be used for
+#' scroing.
 #' 
 #' @return `data.frame` containing pps for all features.
 #' @export
@@ -13,12 +15,18 @@ get_predictive_power_scores <- function(
     data, 
     target, 
     top_n = NULL, 
-    parallel = TRUE
+    parallel = TRUE,
+    subset_ratio = NULL
     ) {
   # selecting all numerical columns
   data <- data %>%
     dplyr::select_if(is.numeric) %>%
     ggplot2::remove_missing(na.rm = TRUE)
+  
+  if (!is.null(subset_ratio)) {
+    data <- data %>% 
+      dplyr::sample_n(size = nrow(data) * subset_ratio)
+  }
   
   # get scores
   scores <- ppsr::score_predictors(df = data, y = target, do_parallel = parallel)
