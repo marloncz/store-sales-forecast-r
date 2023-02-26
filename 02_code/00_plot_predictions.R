@@ -5,6 +5,13 @@ library(tidyr)
 # Data ----
 df_train <- readRDS("01_data/intermediate/df_mod_train_scaled.RDS")
 df_pred <- readRDS("01_data/results/df_asignment_20230225.RDS")
+df_master <- readRDS("01_data/intermediate/df_master.RDS") 
+df_0 <- readRDS("01_data/intermediate/df_0_families.RDS")
+
+df_master <- df_master %>% 
+  left_join(df_0, by = "family") %>% 
+  filter(!is.na(exclude)) %>% 
+  filter(store_nbr == 1)
 
 # subsetting df_train
 df_train <- df_train %>% 
