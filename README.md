@@ -70,7 +70,7 @@ setup this folder by your own. You can download the needed data from the [Kaggle
 
 ## Results 
 
-The archieved score on Kaggle was `0.404033` based on the script `modelling_catboost.R` that contains clear defined formulas.
+The archieved score on Kaggle was `0.404033` based on the script `mod_catboost.R` that contains clear defined formulas.
 
 ### Methodical Approach
 
@@ -96,11 +96,9 @@ More information about the implementation used can be found on [catboost.ai](htt
 
 ### Data
 
-Below few examples of families based on store 001. The family **Beverages** and **Grocery I** are examples for high volume families. Here a clear seasonal pattern regarding the weekdays can be seen. The other two families **Magazines** and **Pet Supplies** are families with a low sales volume. Moreover, families with such sparse data exist in all stores. After 2015, the problem is much less severe. Therefore, only the observations from 2015 were used for modelling, which made it very easy to improve performance.
+Below few examples of families based on store 001. The family **Beverages** and **Grocery I** are examples for high volume families. Here a clear seasonal pattern regarding the weekdays can be seen. The other two families **Magazines** and **Pet Supplies** are families with a low sales volume. Moreover, families with such sparse data exist in all stores. After 2015, the problem is much less severe. Therefore, only the observations from 2015 were used for modelling, which made it very easy to improve performance. There are also families with 0 sales for the entire history. These families are excluded from modeling since a naive prediction with 0 can easily be used.
 
 ![](03_figures/hist_examples_001.png)
-
-The described weekly pattern can also be 
 
 The seasonality mentioned can be seen particularly well if the sales are aggregated by weekday.
 
