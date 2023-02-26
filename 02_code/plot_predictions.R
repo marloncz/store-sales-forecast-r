@@ -14,7 +14,8 @@ df_train <- df_train %>%
 # binding train and pred together
 df_stacked <- df_pred %>% 
   mutate(type = "Prediction") %>% 
-  bind_rows(df_train)
+  bind_rows(df_train) %>% 
+  filter(date > "2017-07-01")
 
 # get mean sales for every family within each store
 df_mean <- df_stacked %>% 
@@ -61,13 +62,16 @@ ggsave(
   width = 25, height = 20, units = "cm", dpi = 400
 )
 
+# saving final results
+saveRDS(df_stacked, "01_data/results/df_predictions_long.RDS")
+
 df_train %>% 
   filter(store == f_store[1]) %>% 
   filter(date < "2015-01-01" & date > "2014-01-01") %>% 
-  filter(family %in% f_low_vol[1:4]) %>% 
+  filter(family %in% c(f_low_vol[1:2], f_high_vol[1:2])) %>% 
   ggplot(aes(x = date, y = sales)) +
   geom_line() +
-  facet_wrap("family", ncol = 1, scales = "free") +
+  facet_wrap("family", ncol = 2, scales = "free") +
   theme_bw() +
   labs(
     col = NULL, x = NULL, y = "Sales",
