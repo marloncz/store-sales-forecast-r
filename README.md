@@ -1,44 +1,6 @@
 # Store Sales Forecast [R]
 
-This repo contains the code for the Kaggle competition [Store Sales Time-Series Forecasting](https://www.kaggle.com/competitions/store-sales-time-series-forecasting/overview).
-
-## Results 
-
-The archieved score on Kaggle was `0.404033` based on the script `modelling_catboost.R` that contains clear defined formulas.
-
-### Methodical Approach
-
-The goal of the Kaggle competition was a daily sales forecast of all provided product families on store level for the next 16 days. For this a direct strategy based on different models was choosen. Moreover, a global modeling approach was used.
-
-#### Global Modeling
-
-In contrast to a forecast at a single level (e.g. sales of one store or family), there are many time-series on the family level that have histories of different lengths. There are different modeling approaches with which this aggregation level can be modeled. Here, the decision was made to use *global modeling*. In this way, it is possible to carry out modeling without the need to train a model for every single family for each store. With local modeling as it is normally implemented, the model specification is carried out separately for each time-series. On the other hand, with global modeling a model specification is made for *all* time-series within a given forecasting horizon. As demonstrated by [Montero-Manso & Hyndman (2020)](https://arxiv.org/abs/2008.00444), despite such a global model specification, similarly good results can be achieved as with local modeling. Detailed information regarding the global modeling approach may be found in the paper by [Montero-Manso & Hyndman (2020)](https://arxiv.org/abs/2008.00444) referenced above.
-
-#### Data Preparation
-
-Since the global model is based on a global model specification and the data preparation is essential for appropriate modeling, these steps will be presented in detail. Since the observed time-series have different scalings and volumes, yet are to be modeled together, the scaling must be aligned. Such harmonization of the scaling is necessary for all features that relate to the family-store specific volume. This is done by a standardizing each time-series based on the standard deviation and the mean:
-
-$${x_{scaled} = \frac{x-x_{mean}}{x_{sd}}}$$
-
-Because the predictions then have to be transformed back to their original scaling, the required parameters that were used for the standardization are saved for each store-family combination. Feature engineering now takes place based on the standardized data. After fitting the model the predictions will be rescaled with the parameters saved at the time of standardization.
-
-#### CatBoost
-
-CatBoost represents an algorithm based on gradient boosting and decision trees. Unlike other well-known algorithms, CatBoost has some advantages that other tree-based models do not have. First, CatBoost uses *ordered boosting*, a modified version of gradient boosting. This modification leads to better performance compared to other established algorithms such as *XGBoost* or *LightGBM*. Another advantage is the conversion of categorical features into a numeric format (siehe [catboost: Transforming categorical features to numerical features](https://catboost.ai/en/docs/concepts/algorithm-main-stages_cat-to-numberic)). This is done in an efficient manner and makes upstream processing of categorical features redundant. Various product information such as *store*, *month*, *weekday* and more are used here. If this information were not converted into a numerical format, each characteristic would lead to an additional column for modeling. In such a case, it would be a classic one-hot encoding. However, this would make the training significantly less efficient.
-
-More information about the implementation used can be found on [catboost.ai](https://catboost.ai/en/docs/).
-
-### Data
-
-![](03_figures/hist_examples_001.png)
-
-![](03_figures/00_sales_distribution_by_weekday.png)
-
-### Predictions
-
-Below are sample forecasts for high volume families based on the store 001. 
-
-![](03_figures/pred_examples_001.png)
+This repo contains the code for the Kaggle competition [Store Sales Time-Series Forecasting](https://www.kaggle.com/competitions/store-sales-time-series-forecasting/overview). The most important results are described below after the technical details.
 
 ## Setup
 
@@ -105,3 +67,47 @@ devtools::install_url(
 
 The folder `01_data` is part of the `.gitignore` file. Therefore, you need to 
 setup this folder by your own. You can download the needed data from the [Kaggle Competition](https://www.kaggle.com/competitions/store-sales-time-series-forecasting/overview).
+
+## Results 
+
+The archieved score on Kaggle was `0.404033` based on the script `modelling_catboost.R` that contains clear defined formulas.
+
+### Methodical Approach
+
+The goal of the Kaggle competition was a daily sales forecast of all provided product families on store level for the next 16 days. For this a direct strategy based on different models was choosen. Moreover, a global modeling approach was used.
+
+#### Global Modeling
+
+In contrast to a forecast at a single level (e.g. sales of one store or family), there are many time-series on the family level that have histories of different lengths. There are different modeling approaches with which this aggregation level can be modeled. Here, the decision was made to use *global modeling*. In this way, it is possible to carry out modeling without the need to train a model for every single family for each store. With local modeling as it is normally implemented, the model specification is carried out separately for each time-series. On the other hand, with global modeling a model specification is made for *all* time-series within a given forecasting horizon. As demonstrated by [Montero-Manso & Hyndman (2020)](https://arxiv.org/abs/2008.00444), despite such a global model specification, similarly good results can be achieved as with local modeling. Detailed information regarding the global modeling approach may be found in the paper by [Montero-Manso & Hyndman (2020)](https://arxiv.org/abs/2008.00444) referenced above.
+
+#### Data Preparation
+
+Since the global model is based on a global model specification and the data preparation is essential for appropriate modeling, these steps will be presented in detail. Since the observed time-series have different scalings and volumes, yet are to be modeled together, the scaling must be aligned. Such harmonization of the scaling is necessary for all features that relate to the family-store specific volume. This is done by a standardizing each time-series based on the standard deviation and the mean:
+
+$${x_{scaled} = \frac{x-x_{mean}}{x_{sd}}}$$
+
+Because the predictions then have to be transformed back to their original scaling, the required parameters that were used for the standardization are saved for each store-family combination. Feature engineering now takes place based on the standardized data. After fitting the model the predictions will be rescaled with the parameters saved at the time of standardization.
+
+#### CatBoost
+
+CatBoost represents an algorithm based on gradient boosting and decision trees. Unlike other well-known algorithms, CatBoost has some advantages that other tree-based models do not have. The one main advantage within the context of this competition is the encoding of categorical features into a numeric format (siehe [catboost: Transforming categorical features to numerical features](https://catboost.ai/en/docs/concepts/algorithm-main-stages_cat-to-numberic)). This is done in an efficient manner and makes upstream processing of categorical features redundant. Various product information such as *store*, *month*, *weekday* and more are used here. If this information were not converted into a numerical format, each characteristic would lead to an additional column for modeling. In such a case, it would be a classic one-hot encoding. However, this would make the training significantly less efficient.
+
+More information about the implementation used can be found on [catboost.ai](https://catboost.ai/en/docs/).
+
+### Data
+
+Below few examples of families based on store 001. The family **Beverages** and **Grocery I** are examples for high volume families. Here a clear seasonal pattern regarding the weekdays can be seen. The other two families **Magazines** and **Pet Supplies** are families with a low sales volume. Moreover, families with such sparse data exist in all stores. After 2015, the problem is much less severe. Therefore, only the observations from 2015 were used for modelling, which made it very easy to improve performance.
+
+![](03_figures/hist_examples_001.png)
+
+The described weekly pattern can also be 
+
+The seasonality mentioned can be seen particularly well if the sales are aggregated by weekday.
+
+![](03_figures/00_sales_distribution_by_weekday.png)
+
+### Predictions
+
+Below are sample forecasts for high volume families based on the store 001.
+
+![](03_figures/pred_examples_001.png)
