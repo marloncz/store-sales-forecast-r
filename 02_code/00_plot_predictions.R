@@ -51,6 +51,7 @@ df_stacked %>%
   ggplot(aes(x = date, y = sales, col = type)) +
   facet_wrap("family", scales = "free") +
   geom_line() +
+  scale_color_manual(values = c("#999999", "#E69F00")) +
   theme_bw() +
   scale_x_date(
     date_breaks = "month", 
