@@ -82,11 +82,14 @@ In contrast to a forecast at a single level (e.g. sales of one store or family),
 
 #### Data Preparation
 
-Since the global model is based on a global model specification and the data preparation is essential for appropriate modeling, these steps will be presented in detail. Since the observed time-series have different scalings and volumes, yet are to be modeled together, the scaling must be aligned. Such harmonization of the scaling is necessary for all features that relate to the family-store specific volume. This is done by a standardizing each time-series based on the standard deviation and the mean:
+Since the global model is based on a global model specification and the data preparation is essential for appropriate modeling, these steps will be presented in detail. Since the observed time-series have different scalings and volumes, yet are to be modeled together, the scaling will be aligned. Such harmonization of the scaling is necessary for all features that relate to the family-store specific volume (see note below regarding tree based models in regards to scaling). This is done by a standardizing each time-series based on the standard deviation and the mean:
 
 $${x_{scaled} = \frac{x-x_{mean}}{x_{sd}}}$$
 
 Because the predictions then have to be transformed back to their original scaling, the required parameters that were used for the standardization are saved for each store-family combination. Feature engineering now takes place based on the standardized data. After fitting the model the predictions will be rescaled with the parameters saved at the time of standardization.
+
+**Note**:
+Tree-based models, such as random forests, and gradient boosting machines, are **inherently insensitive to feature scaling** because they rely on splitting the data based on feature thresholds, rather than the distance or magnitude of the features. These models focus on the order or relative ranking of the feature values, rather than the specific numerical differences between them. As a result, scaling or normalization does not significantly impact their performance, unlike models like linear regression or neural networks, where the magnitude of features can heavily influence model predictions. However, this method is still implemented as it would be necessary for other modeling approaches. Therefore, the scaling can be skipped for modeling with CatBoost.
 
 #### CatBoost
 
